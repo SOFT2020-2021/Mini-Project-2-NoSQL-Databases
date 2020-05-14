@@ -245,6 +245,6 @@ Redis performed more than 10 times faster than mongodb in regards of flushing th
     },
 ```
 
-### Pros / cons of Redis vs MongoDB
+## Conclusion
 To summarize our tests, they were faulty in terms of accuracy, but they proved a point in terms of development complexity. If the tools used to operate on the database is not sufficiently sophisticated to perform the tasks, it can have serious performance consequences. Measuring the databases in terms of bulk reads and writes, and using a library without an API for redis pipelines is really like putting wooden tires on a ferrari before a race.
 Redis should outcompete mongodb performancewise by quite a margin in these scenarios, that is the tradeoff for being volatile and living in memory. Which definitely has it's flaws in terms of scaling and persistence.
