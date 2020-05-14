@@ -34,32 +34,217 @@ We have selected to compare on the following criterias:
 
 
 
-# Note til Jonas' konklusion 
+### Creating demo code for testing the selected database operations against the selected comparison criteria
+
+As previously mentioned, we are creating a demo program for CRUD operations on the respective databases. Our program is written in JavaScript and the operations are exposed to a client through a RESTful api. This introduces some difficulties in regards of accuracy, due to our program not being tested directly through redis and mongodb's CLI's or something equivelant. We are utilizing npm libraries for database clients, risking the possibility of inexpedient implementations, our own implementations are suboptimal in some regards and JavaScript at it's core can only do synchronous commmands. 
+
+##### Chart of aggregated average time (ms) per query, each has been ran 20 times.
+
+| Database | CREATE  |READ | UPDATE |  DELETE  |
+| ---------|------:| -----:| ------:| --------:|
+| Mongodb | 250    | 170   | 170    | 230      |
+| Redis   | 220    | 145   | 300    | 20       |
+
+## CREATE 
+
+The create speeds were similar, with a slight edge to redis. This is expected due to the faster read speeds of ram.
+However we expected the gap to be bigger than the results demonstrates, we assume it is because we utilized mongodb's insertMany (same as bulkWrite) to enhance the performance of inserting multiple json documents and autogenerating the keys. Where in redis we had to explicitly set each key and value, which lead us to first iterate through each entry in the JavaScript object, and performing a single query for each insertion.
+
+##### mongodb
+```js
+    insertAll: (documents) => {
+        return new Promise((resolve, reject) => {
+            db.collection(collection).insertMany(documents, (err, result) => {
+                if (err) reject(err)
+                resolve({ insertedDocuments: result.insertedCount })
+            })
+        })
+    },
+```
+
+##### redis
+```js
+    insertAll: (data) => {
+        return new Promise((resolve, reject) => {
+            let counter = 0
+            data.forEach((movie, i) => {
+                redisClient.set(movie.title, JSON.stringify(movie), function (err, _) {
+                    if (err) reject(err)
+                    counter++
+                    if (i == data.length - 1) resolve({ insertedDocuments: counter })
+                })
+            })
+        })
+    },
+```
+
+## READ
+
+Here we expected some more drastic changes than we actually got. Again the pattern continues with mongodb having query functinoality for multiple reads with it's ``toArray``, which again leads us to implement something seemingly careless. we are not sure about the implementation of mongodbs ``toArray``, but taking the read speed in consideration we assume it is heavily optimized, due to the fast read speeds respective to redis.
+
+##### mongodb
+```js
+    getAll: async (arg) => {
+        return new Promise((resolve, reject) => {
+            db.collection(collection).find({}).toArray((err, result) => {
+                if (err) reject(err)
+                switch (arg) {
+                    case "time": {
+                        resolve({})
+                        break;
+                    }
+                    case "aggregate": {
+                        resolve(
+                            {
+                                msg: "inaccurate time due to javascript aggregation",
+                                receivedDocuments: Object.keys(result).length
+                            }
+                        )
+                        break;
+                    }
+                    case "data": {
+                        resolve(
+                            {
+                                msg: "gl",
+                                result
+                            }
+                        )
+                        break;
+                    }
+                    default: {
+                        resolve(
+                            {
+                                msg: "please provide argument"
+                            }
+                        )
+                    }
+                }
+            })
+        })
+    },
+```
+
+##### redis
+
+```js
+getAll: (arg) => {
+        return new Promise((resolve, reject) => {
+            const results = []
+            redisClient.keys('*', (err, keys) => {
+                if (err) reject(err)
+                keys.forEach((key, i) => {
+                    redisClient.get(key, (err, value) => {
+                        if (err) reject(err)
+                        results.push(value)
+                        if (i === keys.length - 1) {
+                            switch (arg) {
+                                case "time": {
+                                    resolve({})
+                                    break;
+                                }
+                                case "aggregate": {
+                                    resolve(
+                                        {
+                                            msg: "inaccurate time due to javascript aggregation",
+                                            receivedDocuments: results.length
+                                        }
+                                    )
+                                    break;
+                                }
+                                case "data": {
+                                    resolve(
+                                        {
+                                            msg: "gl",
+                                            results
+                                        }
+                                    )
+                                    break;
+                                }
+                                default: {
+                                    resolve(
+                                        {
+                                            msg: "please provide argument"
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    })
+                })
+            })
+        })
+    },
+```
+
+## UPDATE 
+
+The pattern continues, individual queries for redis and a updateMany (bulkUpdate) from mongodb. Mongodb actually crushes redis completely in terms of performance, being almost twice as fast. This could be a sign of slow ram and a fast SSD but the pattern would be recognized through all of the queries if that were the case. Again very suboptimal redis implementation from our side, querying all keys, iterating through them and updating them individually.
+
+##### mongodb
+```js
+    updateAll: async (name) => {
+        return new Promise((resolve, reject) => {
+            const query = {}
+            const data = { $set: { cast: [name] } }
+            db.collection(collection).updateMany(query, data, (err, collection) => {
+                if (err) reject(err)
+                resolve({ "modified": collection.result.nModified })
+            })
+        })
+    },
+```
+
+##### redis
+
+```js
+    updateAll: (name) => {
+        return new Promise((resolve, reject) => {
+            redisClient.keys('*', (err, keys) => {
+                if (err) reject(err)
+                keys.forEach((key, i) => {
+                    redisClient.get(key, (err, value) => {
+                        if (err) reject(err)
+                        const movie = JSON.parse(value)
+                        movie.cast = name
+                        redisClient.set(key, JSON.stringify(movie), () => {
+                            if (i === keys.length - 1) resolve({ 'updated documents': i })
+                        })
+
+                    })
+                })
+            })
+        })
+    },
+```
+
+## DELETE
+
+Redis performed more than 10 times faster than mongodb in regards of flushing the entire store/collection. This time the redis library we used had functions for performing a query that affected multiple key value pairs. Even though we don't necersarily believe it considers the keys nor the values in the operation of flushing the database, it probably just flips a bunch of 1's. 
+
+##### mongodb
+```js
+    deleteAll: () => {
+        return new Promise((resolve, reject) => {
+            db.collection(collection).remove({}, function (err, result) {
+                if (err) reject(err)
+                resolve({ removed: result.result.n })
+            })
+        })
+    },
+```
+
+##### redis
+```js
+    deleteAll: () => {
+        return new Promise((resolve, reject) => {
+            redisClient.flushdb(function (err, _) {
+                if (err) reject(err)
+                resolve({ msg: "the database is cleared of all data" })
+            });
+        })
+    },
+```
 
 ### Pros / cons of Redis vs MongoDB
-- Redis is volatile, therefor a shutdown of the server is lethal, as it will wipe the data stored.
-- Redis er en bedre database hvor søge punkter er nemmere at finde, også hvis de skal genbruges
-
-
-
-
-
-
-
-
-Redis
-```
-Using a normal Redis client to perform mass insertion is not a good idea for a few reasons: the naive approach of sending one command after the other is slow because you have to pay for the round trip time for every command. It is possible to use pipelining, but for mass insertion of many records you need to write new commands while you read replies at the same time to make sure you are inserting as fast as possible.
-
-Only a small percentage of clients support non-blocking I/O, and not all the clients are able to parse the replies in an efficient way in order to maximize throughput. For all of these reasons the preferred way to mass import data into Redis is to generate a text file containing the Redis protocol, in raw format, in order to call the commands needed to insert the required data.
-
-For instance if I need to generate a large data set where there are billions of keys in the form: `keyN -> ValueN' I will create a file containing the following commands in the Redis protocol format:
-``` 
-- selecting appropriate criteria for comparison, such as access time, storage space,
-complexity, versioning, security, or similar
-- creating demo code for testing the selected database operations against the selected
-comparison criteria
-- reporting the results and conclusions.
-It is recommended to consider using ACID and CAP as reference.
-Your conclusion would contribute to the recommendations for making choices of database types for
-specific use cases.
+To summarize our tests, they were faulty in terms of accuracy, but they proved a point in terms of development complexity. If the tools used to operate on the database is not sufficiently sophisticated to perform the tasks, it can have serious performance consequences. Measuring the databases in terms of bulk reads and writes, and using a library without an API for redis pipelines is really like putting wooden tires on a ferrari before a race.
+Redis should outcompete mongodb performancewise by quite a margin in these scenarios, that is the tradeoff for being volatile and living in memory. Which definitely has it's flaws in terms of scaling and persistence.
