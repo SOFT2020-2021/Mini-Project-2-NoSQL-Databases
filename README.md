@@ -1,11 +1,50 @@
 # Mini-project 2: NoSQL Databases
-
 Your task is to select two or more databases of different NoSQL types and to compare their featuresc and performance in storing, scaling, providing, and processing big data.
-
-
-
 - Importing data
- We have found a dataset online containing movies with their respective release year, actors and qualified genres. This dataset is approximately containing 15500 movies spanning 151000 lines of formatted json. 
+  - We have found a dataset online containing movies with their respective release year, actors and qualified genres. This dataset is approximately containing 15500 movies spanning 151000 lines of formatted json. 
+
+- We have chosen to compare Redis and MongoDB for this mini project.
+
+### Selecting relevant database operations, which can be used to compare the databases
+The relevant operations we want to compare between Redis and MongoDB, are going to be the following:
+ - insertAll
+   - Function to import the big dataset.
+ - getAll
+   - Returning how many objects our database consists of.
+ - updateAll
+   - We made an update function, to change the cast for all movies, this would create "bad data", but hence this is for a test scenario, 
+     we will allow it this once.
+ - deleteAll
+   - This function is to delete the whole database,
+
+All of these functions have been made to return a runtime/execution time in milliseconds, as a measurement to compare between each database.
+
+### Selecting appropriate criteria for comparison, such as access time, storage space, complexity, versioning, security, or similar
+We have selected to compare on the following criterias:
+- Access time
+    - First of, we aren't working in a "clean environment", which means the test results will be "tainted" because of this.
+    - We have used the relevant database operations, as described earlier, to test the access time of the 2 databases.
+- Complexity
+    - Both of these database are easy to install, but when they have to be scaled, which we haven't tried yet ourselves but read about,
+    MongoDB have been said to be the easier one as Redis is getting more complicated when you want to scale it.
+- Cost of hardware (such as ram)
+    - Redis is going to be the more expensive choice, based on the prices of gigabytes on ram and harddrives. Since MongoDB data are being
+    stored on the physical drives, and Redis data being stored in the ram.
+
+
+
+# Note til Jonas' konklusion 
+
+### Pros / cons of Redis vs MongoDB
+- Redis is volatile, therefor a shutdown of the server is lethal, as it will wipe the data stored.
+- Redis er en bedre database hvor søge punkter er nemmere at finde, også hvis de skal genbruges
+
+
+
+
+
+
+
 
 Redis
 ```
