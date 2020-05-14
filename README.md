@@ -1,6 +1,7 @@
 # Mini-project 2: NoSQL Databases
 Your task is to select two or more databases of different NoSQL types and to compare their featuresc and performance in storing, scaling, providing, and processing big data.
 - We have chosen to compare Redis and MongoDB for this mini project.
+
 Importing data
   - We have found a dataset online containing movies with their respective release year, actors and qualified genres. This dataset is approximately containing 15500 movies spanning 151000 lines of formatted json. 
 
