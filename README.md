@@ -1,7 +1,7 @@
-Your task is to select two or more databases of different NoSQL types and to compare their features
-and performance in storing, scaling, providing, and processing big data.
-Your solution includes
-- preparing a large data source and loading it into both databases
+# Mini-project 2: NoSQL Databases
+
+Your task is to select two or more databases of different NoSQL types and to compare their featuresc and performance in storing, scaling, providing, and processing big data.
+
 
 
 - Importing data
